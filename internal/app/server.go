@@ -30,6 +30,7 @@ type Server struct {
 	Handler              interfaces.Handler
 	dataBase             *repository.PostgresDatabase
 	middlewares          interfaces.Middlewares
+	postgresPool         *pgxpool.Pool
 }
 
 func NewServer() *Server {
@@ -52,23 +53,25 @@ func (s *Server) Run() error {
 	}
 
 	ctx := context.Background()
-	pgPool, err := pgxpool.New(ctx, s.Config.PostgresDSN)
+	s.postgresPool, err = pgxpool.New(ctx, s.Config.DataBaseURI)
 	if err != nil {
-		logger.Log.Fatalf("failed to init repositories")
+		logger.Log.Fatalf("failed to init pgxpool")
 		return err
 	}
 
-	s.CreateDataBase(ctx, pgPool, s.Config)
+	s.CreateDataBase(ctx, s.postgresPool, s.Config)
 	if err != nil {
 		logger.Log.Fatalf("failed to configure database")
 	}
 
-	s.InitRepositories(ctx, pgPool)
-	s.InitServices()
+	orderCh := make(chan string, s.Config.AccrualOrderChannelSize)
+
+	s.InitRepositories(ctx, s.postgresPool)
+	s.InitServices(orderCh)
 	s.InitHandler()
 	s.InitMiddlewares()
 	s.InitRouter()
-	err = s.app.Listen(s.Config.Port)
+	err = s.app.Listen(s.Config.ServerAdd)
 	if err != nil {
 		logger.Log.Errorf("failed to listen port")
 		return err
@@ -82,10 +85,10 @@ func (s *Server) InitRepositories(ctx context.Context, pool *pgxpool.Pool) {
 	s.WithdrawalRepository = postgres.NewWithdrawalRepository(ctx, pool)
 }
 
-func (s *Server) InitServices() {
+func (s *Server) InitServices(orderCh chan<- string) {
 	s.authService = service.NewAuthService(s.Config.SecretKey, s.Config.TokenExp)
 	s.UserService = service.NewUserService(s.Config, s.UserRepository, s.authService)
-	s.OrderService = service.NewOrderService(s.Config, s.OrderRepository)
+	s.OrderService = service.NewOrderService(s.Config, s.OrderRepository, orderCh)
 	s.WithdrawalService = service.NewWithdrawalService(s.WithdrawalRepository)
 }
 
@@ -95,6 +98,10 @@ func (s *Server) InitHandler() {
 
 func (s *Server) InitMiddlewares() {
 	s.middlewares = middleware.NewMiddlewares(s.authService)
+}
+
+func (s *Server) InitWorkers() {
+
 }
 
 func (s *Server) CreateDataBase(ctx context.Context, pool *pgxpool.Pool, config *config.Config) {
