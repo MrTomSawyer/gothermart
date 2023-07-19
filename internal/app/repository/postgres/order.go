@@ -60,7 +60,7 @@ func (o *OrderRepository) CreateOrder(order entity.Order) error {
 }
 
 func (o *OrderRepository) GetAllOrders(userID int) ([]models.Order, error) {
-	rows, err := o.dbPool.Query(o.ctx, "SELECT * FROM orders WHERE user_id=$1 ORDER BY to_timestamp(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SSOF') DESC", userID)
+	rows, err := o.dbPool.Query(o.ctx, "SELECT * FROM orders WHERE user_id=$1 ORDER BY to_timestamp(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS') DESC", userID)
 	if err != nil {
 		logger.Log.Errorf("failed to query rows for all orders: %v", err)
 		return nil, err
