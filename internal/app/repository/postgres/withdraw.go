@@ -35,9 +35,8 @@ func (r *WithdrawalRepository) Withdraw(withdraw entity.Withdrawal, userID int) 
 	var id string
 	err = row.Scan(&id)
 	if err != nil {
-		err := tx.Rollback(r.ctx)
-		if err != nil {
-			logger.Log.Errorf("failed to rollback a transaction: %v", err)
+		if rollBackErr := tx.Rollback(r.ctx); rollBackErr != nil {
+			logger.Log.Errorf("failed to rollback a transaction: %v", rollBackErr)
 		}
 		logger.Log.Errorf("failed to withdraw: %v", err)
 		return err
