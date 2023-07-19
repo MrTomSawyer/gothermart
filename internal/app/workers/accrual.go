@@ -129,6 +129,7 @@ func getAccrual(order *models.Order, accrualHost string) {
 			err = json.Unmarshal(body, &accrual)
 			if err != nil {
 				logger.Log.Infof("failed to unmarshal responce body")
+				logger.Log.Debugf("Response body: %s", body)
 				break
 			}
 			order.Status = accrual.Status
