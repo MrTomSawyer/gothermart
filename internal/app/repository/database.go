@@ -60,7 +60,7 @@ func (d *PostgresDatabase) ConfigDataBase() error {
 		(
 		    id SERIAL PRIMARY KEY,
 		    user_id INT REFERENCES users(id) NOT NULL,
-    		order_num VARCHAR REFERENCES orders(order_num) NOT NULL,
+    		order_num VARCHAR NOT NULL,
     		sum FLOAT NOT NULL,
     		processed_at VARCHAR NOT NULL
 		);`
