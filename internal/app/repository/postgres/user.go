@@ -3,8 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
-
 	"github.com/MrTomSawyer/loyalty-system/internal/app/apperrors/sqlerr"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/entity"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/logger"
@@ -17,22 +15,19 @@ import (
 )
 
 type UserRepository struct {
-	dbPool    *pgxpool.Pool
-	ctx       context.Context
-	tableName string
+	dbPool *pgxpool.Pool
+	ctx    context.Context
 }
 
-func NewUserRepository(ctx context.Context, pool *pgxpool.Pool, tableName string) *UserRepository {
+func NewUserRepository(ctx context.Context, pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{
-		dbPool:    pool,
-		ctx:       ctx,
-		tableName: tableName,
+		dbPool: pool,
+		ctx:    ctx,
 	}
 }
 
 func (u *UserRepository) GetUserByLogin(login string) (models.User, error) {
-	query := fmt.Sprintf("SELECT * FROM %s WHERE login=$1", u.tableName)
-	row := u.dbPool.QueryRow(u.ctx, query, login)
+	row := u.dbPool.QueryRow(u.ctx, "SELECT * FROM users WHERE login=$1", login)
 
 	user := models.User{}
 	err := row.Scan(&user.Id, &user.Login, &user.Password, &user.Balance, &user.Withdrawn)
@@ -49,8 +44,7 @@ func (u *UserRepository) GetUserByLogin(login string) (models.User, error) {
 }
 
 func (u *UserRepository) CreateUser(user entity.User) error {
-	query := fmt.Sprintf("INSERT INTO %s (login, password) VALUES ($1, $2) RETURNING id", u.tableName)
-	row := u.dbPool.QueryRow(u.ctx, query, user.Login, user.PasswordHash)
+	row := u.dbPool.QueryRow(u.ctx, "INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id", user.Login, user.PasswordHash)
 
 	var id int
 	err := row.Scan(&id)
@@ -69,8 +63,7 @@ func (u *UserRepository) CreateUser(user entity.User) error {
 }
 
 func (u UserRepository) GetUserBalance(userID int) (models.Balance, error) {
-	query := fmt.Sprintf("SELECT balance, withdrawn FROM %s WHERE id=$1", u.tableName)
-	row := u.dbPool.QueryRow(u.ctx, query, userID)
+	row := u.dbPool.QueryRow(u.ctx, "SELECT balance, withdrawn FROM users WHERE id=$1", userID)
 
 	var balance models.Balance
 	err := row.Scan(&balance.Current, &balance.Withdrawn)

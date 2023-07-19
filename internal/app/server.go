@@ -10,6 +10,7 @@ import (
 	"github.com/MrTomSawyer/loyalty-system/internal/app/repository"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/repository/postgres"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/service"
+	"github.com/MrTomSawyer/loyalty-system/internal/app/workers"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,6 +69,7 @@ func (s *Server) Run() error {
 
 	s.InitRepositories(ctx, s.postgresPool)
 	s.InitServices(orderCh)
+	s.InitWorkers(ctx, orderCh)
 	s.InitHandler()
 	s.InitMiddlewares()
 	s.InitRouter()
@@ -80,8 +82,8 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) InitRepositories(ctx context.Context, pool *pgxpool.Pool) {
-	s.UserRepository = postgres.NewUserRepository(ctx, pool, s.Config.UserTableName)
-	s.OrderRepository = postgres.NewOrderRepository(ctx, pool, s.Config.OrderTableName)
+	s.UserRepository = postgres.NewUserRepository(ctx, pool)
+	s.OrderRepository = postgres.NewOrderRepository(ctx, pool)
 	s.WithdrawalRepository = postgres.NewWithdrawalRepository(ctx, pool)
 }
 
@@ -100,8 +102,8 @@ func (s *Server) InitMiddlewares() {
 	s.middlewares = middleware.NewMiddlewares(s.authService)
 }
 
-func (s *Server) InitWorkers() {
-
+func (s *Server) InitWorkers(ctx context.Context, orderCh chan string) {
+	go workers.HandleOrders(ctx, s.postgresPool, orderCh, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
 }
 
 func (s *Server) CreateDataBase(ctx context.Context, pool *pgxpool.Pool, config *config.Config) {

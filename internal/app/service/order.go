@@ -39,8 +39,9 @@ func (o *OrderService) CreateOrder(order models.Order) error {
 		CreatedAt: time.Now().Format(time.RFC3339),
 	}
 
+	err := o.orderRepository.CreateOrder(orderEntity)
 	o.orderCh <- order.OrderID
-	return o.orderRepository.CreateOrder(orderEntity)
+	return err
 }
 
 func (o *OrderService) GetAllOrders(userID int) ([]models.Order, error) {

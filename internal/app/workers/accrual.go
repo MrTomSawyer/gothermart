@@ -15,14 +15,15 @@ import (
 	"time"
 )
 
-func handleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh <-chan int, maxWorkers int, accrualHost string) {
+func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, maxWorkers int, accrualHost string) {
 	var m sync.Mutex
 	workerPool := make(chan struct{}, maxWorkers)
 
 	for orderID := range orderCh {
+		logger.Log.Infof("Procceeding order №%s", orderID)
 		workerPool <- struct{}{}
 
-		go func(orderID int) {
+		go func(orderID string) {
 			m.Lock()
 			defer m.Unlock()
 			defer func() {
@@ -44,8 +45,13 @@ func handleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh <-chan int, m
 			}
 
 			order := models.Order{}
+			order.OrderID = orderID
 			getAccrual(&order, accrualHost)
 
+			if order.Status == "" {
+				logger.Log.Infof("No accrual received for order №%s", orderID)
+				return
+			}
 			//апдейтим ордер и баланс юзера
 			tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
 
@@ -125,7 +131,7 @@ func getAccrual(order *models.Order, accrualHost string) {
 			order.Accrual = accrual.Accrual
 			break
 		case http.StatusNoContent:
-			logger.Log.Errorf("no order with id=%s found: %v", order.OrderID, err)
+			logger.Log.Errorf("no order with id=%s found in the accrual system", order.OrderID)
 			break
 		case http.StatusTooManyRequests:
 			logger.Log.Errorf("too many requests. Retrying...")

@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/apperrors/sqlerr"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/entity"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/logger"
@@ -13,25 +12,22 @@ import (
 )
 
 type OrderRepository struct {
-	dbPool    *pgxpool.Pool
-	ctx       context.Context
-	tableName string
+	dbPool *pgxpool.Pool
+	ctx    context.Context
 }
 
-func NewOrderRepository(ctx context.Context, dbPool *pgxpool.Pool, tableName string) *OrderRepository {
+func NewOrderRepository(ctx context.Context, dbPool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
-		dbPool:    dbPool,
-		ctx:       ctx,
-		tableName: tableName,
+		dbPool: dbPool,
+		ctx:    ctx,
 	}
 }
 
 func (o *OrderRepository) CreateOrder(order entity.Order) error {
-	query := fmt.Sprintf("SELECT * FROM %s WHERE order_num=$1", o.tableName)
-	row := o.dbPool.QueryRow(o.ctx, query, order.OrderID)
+	row := o.dbPool.QueryRow(o.ctx, "SELECT * FROM orders WHERE order_num=$1", order.OrderID)
 
 	var ord entity.Order
-	err := row.Scan(&ord.ID, &ord.UserID, &ord.OrderID, &ord.Status, &ord.CreatedAt)
+	err := row.Scan(&ord.ID, &ord.UserID, &ord.OrderID, &ord.Accrual, &ord.Status, &ord.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Log.Errorf("No rows for order_num %s found", order.OrderID)
@@ -49,8 +45,9 @@ func (o *OrderRepository) CreateOrder(order entity.Order) error {
 		return sqlerr.ErrUploadedByAnotherUser
 	}
 
-	query = fmt.Sprintf("INSERT INTO %s (user_id, order_num, order_status, created_at) VALUES ($1, $2, $3, $4) RETURNING id", o.tableName)
-	row = o.dbPool.QueryRow(o.ctx, query, order.UserID, order.OrderID, order.Status, order.CreatedAt)
+	row = o.dbPool.QueryRow(o.ctx,
+		"INSERT INTO orders (user_id, order_num, order_status, created_at) VALUES ($1, $2, $3, $4) RETURNING id",
+		order.UserID, order.OrderID, order.Status, order.CreatedAt)
 
 	var id int
 	err = row.Scan(&id)
@@ -63,8 +60,7 @@ func (o *OrderRepository) CreateOrder(order entity.Order) error {
 }
 
 func (o *OrderRepository) GetAllOrders(userID int) ([]models.Order, error) {
-	query := fmt.Sprintf("SELECT * FROM %s WHERE user_id=$1 ORDER BY to_timestamp(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SSOF') DESC", o.tableName)
-	rows, err := o.dbPool.Query(o.ctx, query, userID)
+	rows, err := o.dbPool.Query(o.ctx, "SELECT * FROM orders WHERE user_id=$1 ORDER BY to_timestamp(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SSOF') DESC", userID)
 	if err != nil {
 		logger.Log.Errorf("failed to query rows for all orders: %v", err)
 		return nil, err

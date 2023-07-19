@@ -16,8 +16,6 @@ type Config struct {
 	AccrualSystemAddress    string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	AccrualOrderChannelSize int    `env:"ORDER_CHANNEL_SIZE" envDefault:"5"`
 	DataBaseURI             string `env:"PG_DSN"`
-	UserTableName           string `env:"USER_TABLE_NAME" envDefault:"users"`
-	OrderTableName          string `env:"ORDER_TABLE_NAME" envDefault:"orders"`
 }
 
 func NewConfig() *Config {
