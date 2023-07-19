@@ -74,10 +74,10 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			var user entity.User
 			err = row.Scan(&user.Balance)
 			if err != nil {
-				if err := tx.Rollback(ctx); err != nil {
-					logger.Log.Errorf("failed to rollback transaction: %v", err)
+				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+					logger.Log.Errorf("failed to rollback transaction: %v", rollbackErr)
 				}
-				logger.Log.Errorf("failed to find user with id=%d", userID)
+				logger.Log.Errorf("failed to find user with id=%d : %v", userID, err)
 			}
 
 			// пополняем баланс
@@ -86,10 +86,10 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			// апдейтим юзера
 			_, err = pool.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, orderID)
 			if err != nil {
-				if err := tx.Rollback(ctx); err != nil {
+				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
 					logger.Log.Errorf("failed to rollback transaction: %v", err)
 				}
-				logger.Log.Errorf("failed to upfate user with id=%d", userID)
+				logger.Log.Errorf("failed to upfate user with id=%d : %v", userID, err)
 			}
 
 			// коммитим транзакцию.

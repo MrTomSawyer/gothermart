@@ -30,7 +30,7 @@ func (o *OrderRepository) CreateOrder(order entity.Order) error {
 	err := row.Scan(&ord.ID, &ord.UserID, &ord.OrderID, &ord.Accrual, &ord.Status, &ord.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			logger.Log.Errorf("No rows for order_num %s found", order.OrderID)
+			logger.Log.Infof("No rows for order_num %s found. Saving order...", order.OrderID)
 		} else {
 			return err
 		}
