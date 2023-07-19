@@ -61,9 +61,6 @@ func (s *Server) Run() error {
 	}
 
 	s.CreateDataBase(ctx, s.postgresPool, s.Config)
-	if err != nil {
-		logger.Log.Fatalf("failed to configure database")
-	}
 
 	orderCh := make(chan string, s.Config.AccrualOrderChannelSize)
 

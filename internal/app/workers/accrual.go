@@ -54,7 +54,10 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			}
 			//апдейтим ордер и баланс юзера
 			tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
-
+			if err != nil {
+				logger.Log.Infof("failed to begin transaction: %v", err)
+				return
+			}
 			//апдейтим ордер
 			_, err = pool.Exec(ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
 			if err != nil {
@@ -129,10 +132,10 @@ func getAccrual(order *models.Order, accrualHost string) {
 			}
 			order.Status = accrual.Status
 			order.Accrual = accrual.Accrual
-			break
+			return
 		case http.StatusNoContent:
 			logger.Log.Errorf("no order with id=%s found in the accrual system", order.OrderID)
-			break
+			return
 		case http.StatusTooManyRequests:
 			logger.Log.Errorf("too many requests. Retrying...")
 			maxRetries--
