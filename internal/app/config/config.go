@@ -15,7 +15,7 @@ type Config struct {
 	TokenExp                int    `env:"TOKEN_EXP" envDefault:"720"`
 	AccrualSystemAddress    string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	AccrualOrderChannelSize int    `env:"ORDER_CHANNEL_SIZE" envDefault:"5"`
-	DataBaseURI             string `env:"PG_DSN"`
+	DataBaseURI             string `env:"DATABASE_URI"`
 }
 
 func NewConfig() *Config {
