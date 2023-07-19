@@ -7,13 +7,13 @@ import (
 
 type UserService interface {
 	Login(user models.User) (string, error)
-	CreateUser(user models.User) error
+	CreateUser(user models.User) (string, error)
 	GetUserBalance(userID int) (models.Balance, error)
 }
 
 type UserRepository interface {
 	GetUserByLogin(login string) (models.User, error)
-	CreateUser(user entity.User) error
+	CreateUser(user entity.User) (int, error)
 	GetUserBalance(userID int) (models.Balance, error)
 }
 

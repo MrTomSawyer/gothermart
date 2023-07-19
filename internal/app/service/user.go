@@ -49,7 +49,7 @@ func (u *UserService) Login(user models.User) (string, error) {
 	return jwt, nil
 }
 
-func (u *UserService) CreateUser(user models.User) error {
+func (u *UserService) CreateUser(user models.User) (string, error) {
 	newUser := entity.User{
 		Login:        user.Login,
 		PasswordHash: "",
@@ -58,7 +58,18 @@ func (u *UserService) CreateUser(user models.User) error {
 	}
 	newUser.SetPassword(user.Password)
 
-	return u.UserRepository.CreateUser(newUser)
+	id, err := u.UserRepository.CreateUser(newUser)
+	if err != nil {
+		return "", err
+	}
+
+	jwt, err := u.authService.JWT(id)
+	if err != nil {
+		logger.Log.Errorf("failed to sign jwt")
+		return "", autherr.ErrJWTSignFailure
+	}
+
+	return jwt, nil
 }
 
 func (u *UserService) GetUserBalance(userID int) (models.Balance, error) {

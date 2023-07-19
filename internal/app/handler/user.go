@@ -66,7 +66,7 @@ func (h *Handler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	err = h.userService.CreateUser(user)
+	jwt, err := h.userService.CreateUser(user)
 	if err != nil {
 		if errors.Is(err, sqlerr.ErrLoginConflict) {
 			return c.Status(http.StatusConflict).JSON(fiber.Map{
@@ -80,7 +80,13 @@ func (h *Handler) CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	return nil
+	c.Cookie(&fiber.Cookie{
+		Name:     "Authorization",
+		Value:    jwt,
+		HTTPOnly: true,
+	})
+
+	return c.Status(http.StatusOK).JSON(nil)
 }
 
 func (h *Handler) GetUserBalance(c *fiber.Ctx) error {

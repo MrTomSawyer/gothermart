@@ -43,7 +43,7 @@ func (u *UserRepository) GetUserByLogin(login string) (models.User, error) {
 	return user, nil
 }
 
-func (u *UserRepository) CreateUser(user entity.User) error {
+func (u *UserRepository) CreateUser(user entity.User) (int, error) {
 	row := u.dbPool.QueryRow(u.ctx, "INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id", user.Login, user.PasswordHash)
 
 	var id int
@@ -53,16 +53,16 @@ func (u *UserRepository) CreateUser(user entity.User) error {
 		var pqErr *pgconn.PgError
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 			logger.Log.Errorf("failed to create user: login already exists")
-			return sqlerr.ErrLoginConflict
+			return 0, sqlerr.ErrLoginConflict
 		}
 		logger.Log.Errorf("failed to create user: %v", err)
-		return err
+		return 0, err
 	}
 
-	return nil
+	return id, nil
 }
 
-func (u UserRepository) GetUserBalance(userID int) (models.Balance, error) {
+func (u *UserRepository) GetUserBalance(userID int) (models.Balance, error) {
 	row := u.dbPool.QueryRow(u.ctx, "SELECT balance, withdrawn FROM users WHERE id=$1", userID)
 
 	var balance models.Balance
