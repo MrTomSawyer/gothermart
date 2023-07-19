@@ -84,7 +84,7 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			_ = user.SetBalance(order.Accrual)
 
 			// апдейтим юзера
-			_, err = pool.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, orderID)
+			_, err = pool.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, userID)
 			if err != nil {
 				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
 					logger.Log.Errorf("failed to rollback transaction: %v", err)
