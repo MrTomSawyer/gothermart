@@ -74,9 +74,9 @@ func (r *WithdrawalRepository) Withdraw(withdraw entity.Withdrawal, userID int) 
 		"UPDATE users SET balance = $1, withdrawn = $2 WHERE id = $3;", user.Balance, user.Withdrawn, userID)
 
 	if err != nil {
-		err := tx.Rollback(r.ctx)
-		if err != nil {
-			logger.Log.Errorf("failed to rollback a transaction: %v", err)
+		rollbackErr := tx.Rollback(r.ctx)
+		if rollbackErr != nil {
+			logger.Log.Errorf("failed to rollback a transaction: %v", rollbackErr)
 		}
 		logger.Log.Errorf("failed to withdraw: %v", err)
 		return err

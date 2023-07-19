@@ -104,6 +104,7 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 
 func getAccrual(order *models.Order, accrualHost string) {
 	url := fmt.Sprintf("%s/api/orders/%s", accrualHost, order.OrderID)
+	logger.Log.Infof("Accrual url: %s", url)
 	maxRetries := 5
 	retryInterval := 1 * time.Second
 
