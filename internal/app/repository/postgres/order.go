@@ -71,14 +71,14 @@ func (o *OrderRepository) GetAllOrders(userID int) ([]models.Order, error) {
 		order := models.Order{}
 		err := rows.Scan(&order.ID, &order.UserID, &order.OrderID, &order.Accrual, &order.Status, &order.CreatedAt)
 		if err != nil {
-			return nil, err
+			return []models.Order{}, err
 		}
 		orders = append(orders, order)
 	}
 
 	if err := rows.Err(); err != nil {
 		logger.Log.Errorf("failed to scan rows for all orders: %v", err)
-		return nil, err
+		return []models.Order{}, err
 	}
 
 	return orders, nil

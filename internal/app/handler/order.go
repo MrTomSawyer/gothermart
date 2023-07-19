@@ -41,7 +41,7 @@ func (h *Handler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(http.StatusCreated).JSON(fiber.Map{
+	return c.Status(http.StatusAccepted).JSON(fiber.Map{
 		"message": "New order number has been received and is being processed",
 	})
 }
@@ -55,7 +55,7 @@ func (h *Handler) GetAllOrders(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	if orders == nil {
+	if len(orders) == 0 {
 		return c.SendStatus(http.StatusNoContent)
 	}
 
