@@ -70,6 +70,8 @@ func (s *Server) Run() error {
 	s.InitHandler()
 	s.InitMiddlewares()
 	s.InitRouter()
+
+	logger.Log.Infof("Starting server. Address: %s", s.Config.ServerAdd)
 	err = s.app.Listen(s.Config.ServerAdd)
 	if err != nil {
 		logger.Log.Errorf("failed to listen port")

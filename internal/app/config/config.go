@@ -23,11 +23,11 @@ func NewConfig() *Config {
 }
 
 func (c *Config) InitConfig() {
-	flag.StringVar(&c.ServerAdd, "a", "localhost:8081", "server address")
-	//flag.StringVar(&c.AccrualSystemAddress, "r", "http://localhost:8080", "accrual system address")
+	flag.StringVar(&c.ServerAdd, "a", "localhost:8080", "server address")
+	flag.StringVar(&c.AccrualSystemAddress, "r", "http://localhost:8080", "accrual system address")
 	flag.StringVar(&c.DataBaseURI, "d", "", "database dsn")
 	//для локального запуска
-	flag.StringVar(&c.DataBaseURI, "d", "postgres://guest:guest@localhost:5432/loyalty", "database dsn")
+	//flag.StringVar(&c.DataBaseURI, "d", "postgres://guest:guest@localhost:5432/loyalty", "database dsn")
 
 	err := env.Parse(c)
 	if err != nil {
