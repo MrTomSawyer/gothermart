@@ -2,4 +2,4 @@ package withdrawerr
 
 import "errors"
 
-var ErrLowBalance = errors.New("Not enough points to withdraw")
+var ErrLowBalance = errors.New("not enough points to withdraw")

@@ -30,7 +30,7 @@ func (r *WithdrawalRepository) Withdraw(withdraw entity.Withdrawal, userID int) 
 
 	row := r.dbPool.QueryRow(r.ctx,
 		"INSERT INTO withdrawals (user_id, order_num, sum, processed_at) VALUES ($1, $2, $3, $4) RETURNING id",
-		withdraw.UserId, withdraw.OrderID, withdraw.Sum, withdraw.ProcessedAt)
+		withdraw.UserID, withdraw.OrderID, withdraw.Sum, withdraw.ProcessedAt)
 
 	var id string
 	err = row.Scan(&id)
@@ -45,7 +45,7 @@ func (r *WithdrawalRepository) Withdraw(withdraw entity.Withdrawal, userID int) 
 
 	row = r.dbPool.QueryRow(r.ctx,
 		"SELECT balance, withdrawn FROM users WHERE id=$1",
-		withdraw.UserId,
+		withdraw.UserID,
 	)
 
 	var user entity.User

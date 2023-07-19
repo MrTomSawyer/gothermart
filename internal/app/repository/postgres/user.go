@@ -30,7 +30,7 @@ func (u *UserRepository) GetUserByLogin(login string) (models.User, error) {
 	row := u.dbPool.QueryRow(u.ctx, "SELECT * FROM users WHERE login=$1", login)
 
 	user := models.User{}
-	err := row.Scan(&user.Id, &user.Login, &user.Password, &user.Balance, &user.Withdrawn)
+	err := row.Scan(&user.ID, &user.Login, &user.Password, &user.Balance, &user.Withdrawn)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Log.Errorf("no user with login %s found", login)

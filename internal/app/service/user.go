@@ -29,7 +29,7 @@ func (u *UserService) Login(user models.User) (string, error) {
 		return "", err
 	}
 	userEntity := entity.User{
-		Id:           usr.Id,
+		ID:           usr.ID,
 		Login:        usr.Login,
 		PasswordHash: usr.Password,
 	}
@@ -40,7 +40,7 @@ func (u *UserService) Login(user models.User) (string, error) {
 		return "", autherr.ErrWrongCredentials
 	}
 
-	jwt, err := u.authService.JWT(userEntity.Id)
+	jwt, err := u.authService.JWT(userEntity.ID)
 	if err != nil {
 		logger.Log.Errorf("failed to sign jwt")
 		return "", autherr.ErrJWTSignFailure

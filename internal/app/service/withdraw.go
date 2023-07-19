@@ -28,7 +28,7 @@ func (w *WithdrawalService) Withdraw(withdraw models.Withdraw, userID int) error
 	}
 
 	withdrawalEntity := entity.Withdrawal{
-		UserId:      userID,
+		UserID:      userID,
 		OrderID:     withdraw.OrderID,
 		Sum:         withdraw.Sum,
 		ProcessedAt: time.Now().Format(time.RFC3339),

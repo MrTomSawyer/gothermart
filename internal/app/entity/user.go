@@ -8,7 +8,7 @@ import (
 )
 
 type User struct {
-	Id           int
+	ID           int
 	Login        string
 	PasswordHash string
 	Balance      float32
