@@ -69,7 +69,7 @@ func (o *OrderRepository) GetAllOrders(userID int) ([]models.Order, error) {
 	var orders []models.Order
 	for rows.Next() {
 		order := models.Order{}
-		err := rows.Scan(&order.Number, &order.UserID, &order.OrderID, &order.Accrual, &order.Status, &order.CreatedAt)
+		err := rows.Scan(&order.ID, &order.UserID, &order.OrderID, &order.Accrual, &order.Status, &order.CreatedAt)
 		if err != nil {
 			return []models.Order{}, err
 		}
