@@ -11,10 +11,14 @@ type UserService interface {
 	GetUserBalance(userID int) (models.Balance, error)
 }
 
+//serv
+//mockgen -source=C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/interfaces/user.go -destination=C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/repository/mocks/mock_userserv.go -package=mocks C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/service/user.go UserService
+
 type UserRepository interface {
 	GetUserByLogin(login string) (models.User, error)
 	CreateUser(user entity.User) (int, error)
 	GetUserBalance(userID int) (models.Balance, error)
 }
 
-// mockgen -source=C:/Users/lette/OneDrive/Документы/Projects/ygo/loyalty/internal/app/interfaces/user.go -destination=C:/Users/lette/OneDrive/Документы/Projects/ygo/loyalty/internal/app/repository/mocks/mock_postgres.go -package=mocks C:/Users/lette/OneDrive/Документы/Projects/ygo/loyalty/internal/app/repository/postgres UserRepository
+//repo
+// mockgen -source=C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/interfaces/user.go -destination=C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/repository/mocks/mock_postgres.go -package=mocks C:/Users/lette/OneDrive/Документы/Projects/ygo/go-musthave-diploma-tpl/internal/app/repository/postgres UserRepository
