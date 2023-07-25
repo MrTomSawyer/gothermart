@@ -98,6 +98,7 @@ func TestCreateUser(t *testing.T) {
 			app.Post("api/user/login", h.Login)
 
 			res, _ := app.Test(req)
+			defer res.Body.Close()
 			assert.Equal(t, test.want.code, res.StatusCode)
 		})
 	}
