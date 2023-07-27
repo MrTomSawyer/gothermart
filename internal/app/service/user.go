@@ -29,10 +29,10 @@ func (u *UserService) Login(user models.User) (string, error) {
 		return "", err
 	}
 	userEntity := entity.User{
-		ID:           usr.ID,
-		Login:        usr.Login,
-		PasswordHash: usr.Password,
+		ID:    usr.ID,
+		Login: usr.Login,
 	}
+	userEntity.SetRowPasswordString(usr.Password)
 
 	isCorrect := userEntity.ComparePassword(user.Password)
 	if !isCorrect {
@@ -51,12 +51,11 @@ func (u *UserService) Login(user models.User) (string, error) {
 
 func (u *UserService) CreateUser(user models.User) (string, error) {
 	newUser := entity.User{
-		Login:        user.Login,
-		PasswordHash: "",
-		Balance:      0,
-		Withdrawn:    0,
+		Login:     user.Login,
+		Balance:   0,
+		Withdrawn: 0,
 	}
-	newUser.SetPassword(user.Password)
+	newUser.HashPassword(user.Password)
 
 	id, err := u.UserRepository.CreateUser(newUser)
 	if err != nil {

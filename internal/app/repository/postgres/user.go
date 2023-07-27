@@ -44,7 +44,7 @@ func (u *UserRepository) GetUserByLogin(login string) (models.User, error) {
 }
 
 func (u *UserRepository) CreateUser(user entity.User) (int, error) {
-	row := u.dbPool.QueryRow(u.ctx, "INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id", user.Login, user.PasswordHash)
+	row := u.dbPool.QueryRow(u.ctx, "INSERT INTO users (login, password) VALUES ($1, $2) RETURNING id", user.Login, user.GetPassword())
 
 	var id int
 	err := row.Scan(&id)

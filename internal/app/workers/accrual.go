@@ -31,16 +31,11 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			}()
 
 			// проверяем есть ли такой ордер в базе
-			row := pool.QueryRow(ctx, "SELECT user_id, order_status from orders WHERE order_num=$1", orderID)
-			var orderStatus string
+			row := pool.QueryRow(ctx, "SELECT user_id from orders WHERE order_num=$1", orderID)
 			var userID int
-			err := row.Scan(&userID, &orderStatus)
+			err := row.Scan(&userID)
 			if err != nil {
-				logger.Log.Errorf("no order with id=%d found: %v", orderID, err)
-				return
-			}
-			if orderStatus == "INVALID" || orderStatus == "PROCESSED" {
-				logger.Log.Errorf("order with id=%d has status of %s and can't be processed", orderID, orderStatus)
+				logger.Log.Errorf("failed to scan data for order %v", err)
 				return
 			}
 

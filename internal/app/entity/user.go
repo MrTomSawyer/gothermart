@@ -10,22 +10,30 @@ import (
 type User struct {
 	ID           int
 	Login        string
-	PasswordHash string
+	passwordHash string
 	Balance      float32
 	Withdrawn    float32
 }
 
-func (u *User) SetPassword(password string) {
+func (u *User) GetPassword() string {
+	return u.passwordHash
+}
+
+func (u *User) SetRowPasswordString(password string) {
+	u.passwordHash = password
+}
+
+func (u *User) HashPassword(password string) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		logger.Log.Errorf("error hashing password: %v\n", err)
 		return
 	}
-	u.PasswordHash = string(hash)
+	u.passwordHash = string(hash)
 }
 
 func (u *User) ComparePassword(password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+	err := bcrypt.CompareHashAndPassword([]byte(u.passwordHash), []byte(password))
 	if err != nil {
 		logger.Log.Errorf("password mismatch: %v\n", err)
 		return false
