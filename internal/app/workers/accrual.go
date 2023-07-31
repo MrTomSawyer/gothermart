@@ -49,7 +49,8 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			getAccrual(&order, accrualHost)
 
 			if order.Status == "" {
-				logger.Log.Infof("No accrual received for order №%s", orderID)
+				logger.Log.Infof("No accrual received for order №%s. Returning order into channel", orderID)
+				orderCh <- orderID
 				return
 			}
 			//апдейтим ордер и баланс юзера
@@ -59,16 +60,16 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 				return
 			}
 			//апдейтим ордер
-			_, err = pool.Exec(ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
+			_, err = tx.Exec(ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
 			if err != nil {
 				if err := tx.Rollback(ctx); err != nil {
 					logger.Log.Errorf("failed to rollback transaction: %v", err)
 				}
-				logger.Log.Errorf("failed to update order=%d: %v", orderID, err)
+				logger.Log.Errorf("failed to update order=%s: %v", orderID, err)
 			}
 
 			//апдейтим находим в базе юзера и берем значение его баланса
-			row = pool.QueryRow(ctx, "SELECT balance FROM users WHERE id=$1", userID)
+			row = tx.QueryRow(ctx, "SELECT balance FROM users WHERE id=$1", userID)
 
 			// восстанавливаем сущность юзера чтобы пополнить баланс
 			var user entity.User
@@ -84,7 +85,7 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 			_ = user.SetBalance(order.Accrual)
 
 			// апдейтим юзера
-			_, err = pool.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, userID)
+			_, err = tx.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, userID)
 			if err != nil {
 				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
 					logger.Log.Errorf("failed to rollback transaction: %v", err)
