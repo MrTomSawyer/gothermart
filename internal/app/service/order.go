@@ -15,14 +15,12 @@ import (
 type OrderService struct {
 	cfg             *config.Config
 	orderRepository interfaces.OrderRepository
-	orderCh         chan<- string
 }
 
-func NewOrderService(cfg *config.Config, orderRepository interfaces.OrderRepository, orderCh chan<- string) *OrderService {
+func NewOrderService(cfg *config.Config, orderRepository interfaces.OrderRepository) *OrderService {
 	return &OrderService{
 		cfg:             cfg,
 		orderRepository: orderRepository,
-		orderCh:         orderCh,
 	}
 }
 
@@ -40,7 +38,6 @@ func (o *OrderService) CreateOrder(order models.Order) error {
 	}
 
 	err := o.orderRepository.CreateOrder(orderEntity)
-	o.orderCh <- order.OrderID
 	return err
 }
 

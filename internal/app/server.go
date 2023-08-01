@@ -62,11 +62,9 @@ func (s *Server) Run() error {
 
 	s.CreateDataBase(ctx, s.postgresPool, s.Config)
 
-	orderCh := make(chan string, s.Config.AccrualOrderChannelSize)
-
 	s.InitRepositories(ctx, s.postgresPool)
-	s.InitServices(orderCh)
-	s.InitWorkers(ctx, orderCh)
+	s.InitServices()
+	s.InitWorkers()
 	s.InitHandler()
 	s.InitMiddlewares()
 	s.InitRouter()
@@ -86,10 +84,10 @@ func (s *Server) InitRepositories(ctx context.Context, pool *pgxpool.Pool) {
 	s.WithdrawalRepository = postgres.NewWithdrawalRepository(ctx, pool)
 }
 
-func (s *Server) InitServices(orderCh chan<- string) {
+func (s *Server) InitServices() {
 	s.authService = service.NewAuthService(s.Config.SecretKey, s.Config.TokenExp)
 	s.UserService = service.NewUserService(s.Config, s.UserRepository, s.authService)
-	s.OrderService = service.NewOrderService(s.Config, s.OrderRepository, orderCh)
+	s.OrderService = service.NewOrderService(s.Config, s.OrderRepository)
 	s.WithdrawalService = service.NewWithdrawalService(s.WithdrawalRepository)
 }
 
@@ -101,9 +99,8 @@ func (s *Server) InitMiddlewares() {
 	s.middlewares = middleware.NewMiddlewares(s.authService)
 }
 
-func (s *Server) InitWorkers(ctx context.Context, orderCh chan string) {
-	//go workers.HandleOrders(ctx, s.postgresPool, orderCh, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
-	go workers.HandleOrders(s.OrderRepository, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
+func (s *Server) InitWorkers() {
+	go workers.HandleOrders(s.OrderRepository, s.Config.AccrualOrderChannelSize, s.Config.AccrualTickerPeriod, s.Config.AccrualSystemAddress)
 }
 
 func (s *Server) CreateDataBase(ctx context.Context, pool *pgxpool.Pool, config *config.Config) {
