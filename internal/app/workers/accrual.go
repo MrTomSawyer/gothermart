@@ -1,25 +1,35 @@
 package workers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MrTomSawyer/loyalty-system/internal/app/entity"
+	"github.com/MrTomSawyer/loyalty-system/internal/app/interfaces"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/logger"
 	"github.com/MrTomSawyer/loyalty-system/internal/app/models"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
 	"net/http"
 	"sync"
 	"time"
 )
 
-func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, maxWorkers int, accrualHost string) {
+// func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, maxWorkers int, accrualHost string) {
+func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, accrualHost string) {
 	var m sync.Mutex
 	workerPool := make(chan struct{}, maxWorkers)
+	var OrderIDs []string
 
-	for orderID := range orderCh {
+	go func(ids *[]string) {
+		ticker := time.NewTicker(time.Second)
+		for range ticker.C {
+			unhandledOrderIDs, err := orderRep.GetUnhandledOrders()
+			if err != nil {
+				logger.Log.Errorf("Failed to get all ")
+			}
+			OrderIDs = unhandledOrderIDs
+		}
+	}(&OrderIDs)
+
+	for _, orderID := range OrderIDs {
 		logger.Log.Infof("Procceeding order №%s", orderID)
 		workerPool <- struct{}{}
 
@@ -30,78 +40,121 @@ func HandleOrders(ctx context.Context, pool *pgxpool.Pool, orderCh chan string, 
 				<-workerPool
 			}()
 
-			// проверяем есть ли такой ордер в базе
-			row := pool.QueryRow(ctx, "SELECT user_id, order_status from orders WHERE order_num=$1", orderID)
-			var userID int
-			var orderStatus string
-			err := row.Scan(&userID, &orderStatus)
+			userID, err := orderRep.GetOrderAndUserIDs(orderID)
 			if err != nil {
 				logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
-				return
-			}
-			if orderStatus == "INVALID" || orderStatus == "PROCESSED" {
-				logger.Log.Errorf("order with id=%s has status of %s and can't be processed", orderID, orderStatus)
 				return
 			}
 
 			order := models.Order{}
 			order.OrderID = orderID
 			getAccrual(&order, accrualHost)
-
 			if order.Status == "" {
-				logger.Log.Infof("No accrual received for order №%s. Returning order into channel", orderID)
-				orderCh <- orderID
+				logger.Log.Infof("No accrual received for order №%s", orderID)
 				return
 			}
-			//апдейтим ордер и баланс юзера
-			tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
+
+			err = orderRep.UpdateOrderAccrual(order, orderID, userID)
 			if err != nil {
-				logger.Log.Infof("failed to begin transaction: %v", err)
+				logger.Log.Errorf("failed to update order: %s", orderID)
 				return
 			}
-			//апдейтим ордер
-			_, err = tx.Exec(ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
-			if err != nil {
-				if err := tx.Rollback(ctx); err != nil {
-					logger.Log.Errorf("failed to rollback transaction: %v", err)
-				}
-				logger.Log.Errorf("failed to update order=%s: %v", orderID, err)
-			}
-
-			//апдейтим находим в базе юзера и берем значение его баланса
-			row = tx.QueryRow(ctx, "SELECT balance FROM users WHERE id=$1", userID)
-
-			// восстанавливаем сущность юзера чтобы пополнить баланс
-			var user entity.User
-			err = row.Scan(&user.Balance)
-			if err != nil {
-				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-					logger.Log.Errorf("failed to rollback transaction: %v", rollbackErr)
-				}
-				logger.Log.Errorf("failed to find user with id=%d : %v", userID, err)
-			}
-
-			// пополняем баланс
-			_ = user.SetBalance(order.Accrual)
-
-			// апдейтим юзера
-			_, err = tx.Exec(ctx, "UPDATE users SET balance=$1 WHERE id=$2", user.Balance, userID)
-			if err != nil {
-				if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-					logger.Log.Errorf("failed to rollback transaction: %v", err)
-				}
-				logger.Log.Errorf("failed to upfate user with id=%d : %v", userID, err)
-			}
-
-			// коммитим транзакцию.
-			if err := tx.Commit(ctx); err != nil {
-				logger.Log.Errorf("failed to commit transaction: %v", err)
-			}
-			logger.Log.Infof("Transaction successfully commited")
 
 		}(orderID)
 	}
+
+	//for orderID := range orderCh {
+	//	logger.Log.Infof("Procceeding order №%s", orderID)
+	//	workerPool <- struct{}{}
+	//
+	//	go func(orderID string) {
+	//		m.Lock()
+	//		defer m.Unlock()
+	//		defer func() {
+	//			<-workerPool
+	//		}()
+
+	// проверяем есть ли такой ордер в базе
+	//userID, err := orderRep.GetOrderAndUserIDs(orderID)
+	//if err != nil {
+	//	logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+	//	return
+	//}
+	//row := pool.QueryRow(ctx, "SELECT user_id, order_status from orders WHERE order_num=$1", orderID)
+	//var userID int
+	//var orderStatus string
+	//err := row.Scan(&userID, &orderStatus)
+	//if err != nil {
+	//	logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+	//	return
+	//}
+	//if orderStatus == "INVALID" || orderStatus == "PROCESSED" {
+	//	logger.Log.Errorf("order with id=%s has status of %s and can't be processed", orderID, orderStatus)
+	//	return
+	//}
+
+	//order := models.Order{}
+	//order.OrderID = orderID
+	//getAccrual(&order, accrualHost)
+	//
+	//if order.Status == "" {
+	//	logger.Log.Infof("No accrual received for order №%s. Returning order into channel", orderID)
+	//	orderCh <- orderID
+	//	return
+	//}
+	//
+	//err = orderRep.UpdateOrderAccrual(order, orderID, userID)
+	//if err != nil {
+	//	logger.Log.Errorf("failed to update order: %s", orderID)
+	//	return
+	//}
+	//апдейтим ордер и баланс юзера
+	//tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	//if err != nil {
+	//	logger.Log.Infof("failed to begin transaction: %v", err)
+	//	return
+	//}
+	//апдейтим ордер
+	//_, err = tx.Exec(ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
+	//if err != nil {
+	//	if err := tx.Rollback(ctx); err != nil {
+	//		logger.Log.Errorf("failed to rollback transaction: %v", err)
+	//	}
+	//	logger.Log.Errorf("failed to update order=%s: %v", orderID, err)
+	//}
+
+	//апдейтим находим в базе юзера и берем значение его баланса
+	//row = tx.QueryRow(ctx, "SELECT balance FROM users WHERE id=$1", userID)
+
+	// восстанавливаем сущность юзера чтобы пополнить баланс
+	//var user entity.User
+	//err = row.Scan(&user.Balance)
+	//if err != nil {
+	//	if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+	//		logger.Log.Errorf("failed to rollback transaction: %v", rollbackErr)
+	//	}
+	//	logger.Log.Errorf("failed to find user with id=%d : %v", userID, err)
+	//}
+
+	// апдейтим юзера
+	//_, err = tx.Exec(ctx, "UPDATE users SET balance=balance+$1 WHERE id=$2", order.Accrual, userID)
+	//if err != nil {
+	//	if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+	//		logger.Log.Errorf("failed to rollback transaction: %v", err)
+	//	}
+	//	logger.Log.Errorf("failed to upfate user with id=%d : %v", userID, err)
+	//}
+
+	// коммитим транзакцию.
+	//if err := tx.Commit(ctx); err != nil {
+	//	logger.Log.Errorf("failed to commit transaction: %v", err)
+	//}
+	//logger.Log.Infof("Transaction successfully commited")
+
+	//}(orderID)
 }
+
+//}
 
 func getAccrual(order *models.Order, accrualHost string) {
 	url := fmt.Sprintf("%s/api/orders/%s", accrualHost, order.OrderID)

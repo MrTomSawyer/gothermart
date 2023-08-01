@@ -8,6 +8,9 @@ import (
 type OrderRepository interface {
 	CreateOrder(order entity.Order) error
 	GetAllOrders(userID int) ([]models.Order, error)
+	UpdateOrderAccrual(order models.Order, orderID string, userID int) error
+	GetUnhandledOrders() ([]string, error)
+	GetOrderAndUserIDs(orderID string) (int, error)
 }
 
 type OrderService interface {

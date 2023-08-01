@@ -102,14 +102,15 @@ func (s *Server) InitMiddlewares() {
 }
 
 func (s *Server) InitWorkers(ctx context.Context, orderCh chan string) {
-	go workers.HandleOrders(ctx, s.postgresPool, orderCh, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
+	//go workers.HandleOrders(ctx, s.postgresPool, orderCh, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
+	go workers.HandleOrders(s.OrderRepository, s.Config.AccrualOrderChannelSize, s.Config.AccrualSystemAddress)
 }
 
 func (s *Server) CreateDataBase(ctx context.Context, pool *pgxpool.Pool, config *config.Config) {
 	s.dataBase = repository.NewDatabase(ctx, pool, config)
 	err := s.dataBase.ConfigDataBase()
 	if err != nil {
-		logger.Log.Fatalf("failed to init a database")
+		logger.Log.Fatalf("failed to init a database: %v", err)
 	}
 }
 

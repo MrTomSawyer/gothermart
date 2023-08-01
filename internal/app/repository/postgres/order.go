@@ -59,6 +59,90 @@ func (o *OrderRepository) CreateOrder(order entity.Order) error {
 	return nil
 }
 
+func (o *OrderRepository) UpdateOrderAccrual(order models.Order, orderID string, userID int) error {
+	tx, err := o.dbPool.BeginTx(o.ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	if err != nil {
+		logger.Log.Infof("failed to begin transaction: %v", err)
+		return err
+	}
+
+	_, err = tx.Exec(o.ctx, "UPDATE orders SET order_status=$1, accrual=$2 WHERE order_num=$3", order.Status, order.Accrual, orderID)
+	if err != nil {
+		if err := tx.Rollback(o.ctx); err != nil {
+			logger.Log.Errorf("failed to rollback transaction: %v", err)
+			return err
+		}
+		logger.Log.Errorf("failed to update order=%s: %v", orderID, err)
+		return err
+	}
+
+	row := tx.QueryRow(o.ctx, "SELECT balance FROM users WHERE id=$1", userID)
+	var user entity.User
+	err = row.Scan(&user.Balance)
+	if err != nil {
+		if rollbackErr := tx.Rollback(o.ctx); rollbackErr != nil {
+			logger.Log.Errorf("failed to rollback transaction: %v", rollbackErr)
+			return err
+		}
+		logger.Log.Errorf("failed to find user with id=%d : %v", userID, err)
+		return err
+	}
+
+	_, err = tx.Exec(o.ctx, "UPDATE users SET balance=balance+$1 WHERE id=$2", order.Accrual, userID)
+	if err != nil {
+		if rollbackErr := tx.Rollback(o.ctx); rollbackErr != nil {
+			logger.Log.Errorf("failed to rollback transaction: %v", err)
+			return err
+		}
+		logger.Log.Errorf("failed to upfate user with id=%d : %v", userID, err)
+		return err
+	}
+
+	if err := tx.Commit(o.ctx); err != nil {
+		logger.Log.Errorf("failed to commit transaction: %v", err)
+	}
+	logger.Log.Infof("Transaction successfully commited")
+
+	return nil
+}
+
+func (o *OrderRepository) GetUnhandledOrders() ([]string, error) {
+	var orderIDs []string
+	rows, err := o.dbPool.Query(o.ctx, "SELECT order_num FROM orders WHERE order_status='NEW'")
+	if err != nil {
+		logger.Log.Errorf("failed to query rows for all orders with NEW status: %v", err)
+		return []string{}, err
+	}
+	for rows.Next() {
+		var ID string
+		err := rows.Scan(&ID)
+		if err != nil {
+			logger.Log.Errorf("failder to stan order ID: %v", err)
+			return []string{}, err
+		}
+		orderIDs = append(orderIDs, ID)
+	}
+
+	return orderIDs, nil
+}
+
+func (o *OrderRepository) GetOrderAndUserIDs(orderID string) (int, error) {
+	row := o.dbPool.QueryRow(o.ctx, "SELECT user_id, order_status from orders WHERE order_num=$1", orderID)
+	var userID int
+	var orderStatus string
+	err := row.Scan(&userID, &orderStatus)
+	if err != nil {
+		logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+		return 0, err
+	}
+	if orderStatus == "INVALID" || orderStatus == "PROCESSED" {
+		logger.Log.Errorf("order with id=%s has status of %s and can't be processed", orderID, orderStatus)
+		return 0, err
+	}
+
+	return userID, nil
+}
+
 func (o *OrderRepository) GetAllOrders(userID int) ([]models.Order, error) {
 	rows, err := o.dbPool.Query(o.ctx, "SELECT * FROM orders WHERE user_id=$1 ORDER BY to_timestamp(created_at, 'YYYY-MM-DD\"T\"HH24:MI:SS') DESC", userID)
 	if err != nil {
