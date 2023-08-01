@@ -16,52 +16,83 @@ import (
 func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, accrualHost string) {
 	var m sync.Mutex
 	workerPool := make(chan struct{}, maxWorkers)
-	var OrderIDs []string
 
-	go func(ids *[]string) {
+	go func() {
 		ticker := time.NewTicker(time.Second)
 		for range ticker.C {
 			unhandledOrderIDs, err := orderRep.GetUnhandledOrders()
 			if err != nil {
 				logger.Log.Errorf("Failed to get all ")
 			}
-			OrderIDs = unhandledOrderIDs
+			for _, orderID := range unhandledOrderIDs {
+				logger.Log.Infof("Procceeding order №%s", orderID)
+				workerPool <- struct{}{}
+
+				go func(orderID string) {
+					m.Lock()
+					defer m.Unlock()
+					defer func() {
+						<-workerPool
+					}()
+
+					userID, err := orderRep.GetOrderAndUserIDs(orderID)
+					if err != nil {
+						logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+						return
+					}
+
+					order := models.Order{}
+					order.OrderID = orderID
+					getAccrual(&order, accrualHost)
+					if order.Status == "" {
+						logger.Log.Infof("No accrual received for order №%s", orderID)
+						return
+					}
+
+					err = orderRep.UpdateOrderAccrual(order, orderID, userID)
+					if err != nil {
+						logger.Log.Errorf("failed to update order: %s", orderID)
+						return
+					}
+
+				}(orderID)
+			}
 		}
-	}(&OrderIDs)
+	}()
 
-	for _, orderID := range OrderIDs {
-		logger.Log.Infof("Procceeding order №%s", orderID)
-		workerPool <- struct{}{}
-
-		go func(orderID string) {
-			m.Lock()
-			defer m.Unlock()
-			defer func() {
-				<-workerPool
-			}()
-
-			userID, err := orderRep.GetOrderAndUserIDs(orderID)
-			if err != nil {
-				logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
-				return
-			}
-
-			order := models.Order{}
-			order.OrderID = orderID
-			getAccrual(&order, accrualHost)
-			if order.Status == "" {
-				logger.Log.Infof("No accrual received for order №%s", orderID)
-				return
-			}
-
-			err = orderRep.UpdateOrderAccrual(order, orderID, userID)
-			if err != nil {
-				logger.Log.Errorf("failed to update order: %s", orderID)
-				return
-			}
-
-		}(orderID)
-	}
+	//for _, orderID := range OrderIDs {
+	//	logger.Log.Infof("Procceeding order №%s", orderID)
+	//	workerPool <- struct{}{}
+	//
+	//	go func(orderID string) {
+	//		m.Lock()
+	//		defer m.Unlock()
+	//		defer func() {
+	//			<-workerPool
+	//		}()
+	//
+	//		userID, err := orderRep.GetOrderAndUserIDs(orderID)
+	//		if err != nil {
+	//			logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+	//			return
+	//		}
+	//
+	//		order := models.Order{}
+	//		order.OrderID = orderID
+	//		getAccrual(&order, accrualHost)
+	//		if order.Status == "" {
+	//			logger.Log.Infof("No accrual received for order №%s", orderID)
+	//			return
+	//		}
+	//
+	//		err = orderRep.UpdateOrderAccrual(order, orderID, userID)
+	//		if err != nil {
+	//			logger.Log.Errorf("failed to update order: %s", orderID)
+	//			return
+	//		}
+	//
+	//	}(orderID)
+	//}
 
 	//for orderID := range orderCh {
 	//	logger.Log.Infof("Procceeding order №%s", orderID)
