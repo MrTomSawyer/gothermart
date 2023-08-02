@@ -17,6 +17,7 @@ type Config struct {
 	AccrualOrderChannelSize int    `env:"ORDER_CHANNEL_SIZE" envDefault:"5"`
 	DataBaseURI             string `env:"DATABASE_URI"`
 	AccrualTickerPeriod     string `env:"ACCRUAL_TICKER_PERIOD"`
+	AccrualRetryInterval    string `env:"ACCRUAL_RETRY_INTERVAL"`
 }
 
 func NewConfig() *Config {
@@ -28,6 +29,7 @@ func (c *Config) InitConfig() {
 	flag.StringVar(&c.AccrualSystemAddress, "r", "http://localhost:8080", "accrual system address")
 	flag.StringVar(&c.DataBaseURI, "d", "", "database dsn")
 	flag.StringVar(&c.AccrualTickerPeriod, "t", "1", "accrual ticker period")
+	flag.StringVar(&c.AccrualRetryInterval, "ri", "1", "accrual retry interval")
 	//для локального запуска
 	//flag.StringVar(&c.DataBaseURI, "d", "postgres://guest:guest@localhost:5432/loyalty", "database dsn")
 

@@ -100,7 +100,7 @@ func (s *Server) InitMiddlewares() {
 }
 
 func (s *Server) InitWorkers() {
-	go workers.HandleOrders(s.OrderRepository, s.Config.AccrualOrderChannelSize, s.Config.AccrualTickerPeriod, s.Config.AccrualSystemAddress)
+	go workers.HandleOrders(s.OrderRepository, s.Config.AccrualOrderChannelSize, s.Config.AccrualTickerPeriod, s.Config.AccrualSystemAddress, s.Config.AccrualRetryInterval)
 }
 
 func (s *Server) CreateDataBase(ctx context.Context, pool *pgxpool.Pool, config *config.Config) {

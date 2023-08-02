@@ -13,8 +13,7 @@ import (
 	"time"
 )
 
-func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, tickerPeriod string, accrualHost string) {
-	var m sync.Mutex
+func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, tickerPeriod string, accrualHost string, retryInterval string) {
 	workerPool := make(chan struct{}, maxWorkers)
 
 	go func() {
@@ -34,46 +33,54 @@ func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, tickerPer
 				logger.Log.Infof("Procceeding order №%s", orderID)
 				workerPool <- struct{}{}
 
-				go func(orderID string) {
-					m.Lock()
-					defer m.Unlock()
-					defer func() {
-						<-workerPool
-					}()
-
-					userID, err := orderRep.GetOrderAndUserIDs(orderID)
-					if err != nil {
-						logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
-						return
-					}
-
-					order := models.Order{}
-					order.OrderID = orderID
-					getAccrual(&order, accrualHost)
-					if order.Status == "" {
-						logger.Log.Infof("No accrual received for order №%s", orderID)
-						return
-					}
-
-					err = orderRep.UpdateOrderAccrual(order, orderID, userID)
-					if err != nil {
-						logger.Log.Errorf("failed to update order: %s", orderID)
-						return
-					}
-				}(orderID)
+				go processOrder(orderID, workerPool, orderRep, accrualHost, retryInterval)
 			}
 		}
 	}()
 }
 
-func getAccrual(order *models.Order, accrualHost string) {
+func processOrder(orderID string, workerPool chan struct{}, orderRep interfaces.OrderRepository, accrualHost string, retryInterval string) {
+	var m sync.Mutex
+	m.Lock()
+	defer m.Unlock()
+	defer func() {
+		<-workerPool
+	}()
+
+	userID, err := orderRep.GetOrderAndUserIDs(orderID)
+	if err != nil {
+		logger.Log.Errorf("no order with id=%s found: %v", orderID, err)
+		return
+	}
+
+	order := models.Order{}
+	order.OrderID = orderID
+	getAccrual(&order, accrualHost, retryInterval)
+	if order.Status == "" {
+		logger.Log.Infof("No accrual received for order №%s", orderID)
+		return
+	}
+
+	err = orderRep.UpdateOrderAccrual(order, orderID, userID)
+	if err != nil {
+		logger.Log.Errorf("failed to update order: %s", orderID)
+		return
+	}
+}
+
+func getAccrual(order *models.Order, accrualHost string, interval string) {
 	url := fmt.Sprintf("%s/api/orders/%s", accrualHost, order.OrderID)
 	logger.Log.Infof("Accrual url: %s", url)
 	maxRetries := 5
-	retryInterval := 1 * time.Second
 
 	var res *http.Response
 	var err error
+
+	retryInt, err := strconv.Atoi(interval)
+	if err != nil {
+		logger.Log.Errorf("Invalid retry period format: %v", err)
+	}
+	retryInterval := time.Duration(retryInt) * time.Second
 
 	for maxRetries > 0 {
 		res, err = http.Get(url)
