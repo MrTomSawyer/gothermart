@@ -16,27 +16,25 @@ import (
 func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, tickerPeriod string, accrualHost string, retryInterval string) {
 	workerPool := make(chan struct{}, maxWorkers)
 
-	go func() {
-		tPeriod, err := strconv.Atoi(tickerPeriod)
+	tPeriod, err := strconv.Atoi(tickerPeriod)
+	if err != nil {
+		logger.Log.Errorf("Invalid ticker period format: %v", err)
+		return
+	}
+
+	ticker := time.NewTicker(time.Duration(tPeriod) * time.Second)
+	for range ticker.C {
+		unhandledOrderIDs, err := orderRep.GetUnhandledOrders()
 		if err != nil {
-			logger.Log.Errorf("Invalid ticker period format: %v", err)
-			return
+			logger.Log.Errorf("Failed to get all ")
 		}
+		for _, orderID := range unhandledOrderIDs {
+			logger.Log.Infof("Procceeding order №%s", orderID)
+			workerPool <- struct{}{}
 
-		ticker := time.NewTicker(time.Duration(tPeriod) * time.Second)
-		for range ticker.C {
-			unhandledOrderIDs, err := orderRep.GetUnhandledOrders()
-			if err != nil {
-				logger.Log.Errorf("Failed to get all ")
-			}
-			for _, orderID := range unhandledOrderIDs {
-				logger.Log.Infof("Procceeding order №%s", orderID)
-				workerPool <- struct{}{}
-
-				go processOrder(orderID, workerPool, orderRep, accrualHost, retryInterval)
-			}
+			go processOrder(orderID, workerPool, orderRep, accrualHost, retryInterval)
 		}
-	}()
+	}
 }
 
 func processOrder(orderID string, workerPool chan struct{}, orderRep interfaces.OrderRepository, accrualHost string, retryInterval string) {
