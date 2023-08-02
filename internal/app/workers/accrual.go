@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -38,9 +37,6 @@ func HandleOrders(orderRep interfaces.OrderRepository, maxWorkers int, tickerPer
 }
 
 func processOrder(orderID string, workerPool chan struct{}, orderRep interfaces.OrderRepository, accrualHost string, retryInterval string) {
-	var m sync.Mutex
-	m.Lock()
-	defer m.Unlock()
 	defer func() {
 		<-workerPool
 	}()
